@@ -1,25 +1,9 @@
-
-CREATE TABLE `branchs` (
+CREATE TABLE `repositories` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `rid` int(10) UNSIGNED NOT NULL,
-  `branch` varchar(100) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  `name` varchar(100) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
   `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `status` tinyint(1) NOT NULL COMMENT '[1 冻结][2 一般][3 申请合并][4 己合并][5 己删除]',
-  `addtime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `lastchange` timestamp NOT NULL DEFAULT '1978-12-31 16:00:00',
-  `commit` char(40) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `rbranch` (`rid`,`branch`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
-CREATE TABLE `commit_log` (
-  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `rid` int(10) UNSIGNED NOT NULL,
-  `uid` int(10) UNSIGNED NOT NULL,
-  `branch` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-  `oldrev` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-  `newrev` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-  PRIMARY KEY (`id`)
+  UNIQUE KEY `dir` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 CREATE TABLE `config` (
@@ -39,19 +23,23 @@ CREATE TABLE `perms` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
-CREATE TABLE `repositories` (
-  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
-  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `dir` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 CREATE TABLE `rules` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `about` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+insert into `rules` (`id`, `about`) VALUES 
+(1, '访问项目'),
+(2, '修改项目'),
+(3, '新建分支'),
+(4, '删除分支'),
+(5, '新建tag'),
+(6, '修改tag'),
+(7, '删除tag'),
+(8, '锁定分支修改'),
+(9, '强型推送');
 
 CREATE TABLE `users` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -60,5 +48,16 @@ CREATE TABLE `users` (
   `isadmin` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user` (`user`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+
+CREATE TABLE `commit_log` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `rid` int(10) UNSIGNED NOT NULL,
+  `uid` int(10) UNSIGNED NOT NULL,
+  `branch` varchar(100) COLLATE utf8mb4_bin NOT NULL,
+  `oldrev` varchar(100) COLLATE utf8mb4_bin NOT NULL,
+  `newrev` varchar(100) COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 

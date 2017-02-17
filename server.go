@@ -55,21 +55,6 @@ func main() {
 			return
 		}
 
-		services := []struct {
-			Pattern string
-			Call    Page
-		}{
-			{"_gitflow_branch_getall", page_branch_getall},
-			{"_gitflow_branch_getinfo", page_branch_getinfo},
-			{"_gitflow_branch_has", page_branch_has},
-			{"_gitflow_branch_add", page_branch_add},
-			{"_gitflow_branch_delete", page_branch_delete},
-			{"_gitflow_branch_status", page_branch_status},
-			{"_gitflow_branch_merged", page_branch_merged},
-			{"_gitflow_history_branchs", page_history_branchs},
-			{"_gitflow_get_config", page_get_config},
-		}
-
 		tmps := strings.SplitN(strings.Trim(filepath.FromSlash(r.URL.Path), "/"), "/", 2)
 		repo_name := tmps[0]
 		repo_dir := filepath.Join(*root, tmps[0])
@@ -95,25 +80,6 @@ func main() {
 			UserName: user,
 		}
 
-		for _, tmp := range services {
-			if strings.HasSuffix(r.URL.Path, tmp.Pattern) {
-
-				if user_id < 1 {
-					//w.Header().Add("WWW-Authenticate", "Basic realm=\"USER LOGIN\"")
-					//http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-
-					res := Result{}
-					res.Code = 1
-					res.Msg = "认证失败"
-					json.NewEncoder(w).Encode(res)
-					return
-				}
-
-				tmp.Call(w, r, ctx)
-				return
-			}
-		}
-
 		if user_id < 1 {
 			w.Header().Add("WWW-Authenticate", "Basic realm=\"USER LOGIN\"")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
@@ -136,11 +102,9 @@ func page_git(w http.ResponseWriter, r *http.Request, ctx *Context) {
 		hooks_update_change(ctx)
 	}
 
-	bin := "/usr/bin/git"
-
 	var cgih cgi.Handler
 	cgih = cgi.Handler{
-		Path: bin,
+		Path: *gitBin,
 		Dir:  *root,
 		Root: "/",
 		Args: []string{"http-backend"},
