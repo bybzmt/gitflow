@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 var hooks_lock sync.Mutex
 var sid = ""
+var hook_update_url = ""
 var hooks_ctx *Context
 
 func hooks_start(ctx *Context) {
@@ -20,7 +22,9 @@ func hooks_start(ctx *Context) {
 	tmp := rand.Int63()
 	sid = strconv.FormatInt(tmp, 16)
 	hooks_ctx = ctx
+	hook_update_url = ctx.BaseUrl + "/__hooks__/update"
 }
+
 func hooks_end() {
 	hooks_lock.Unlock()
 	sid = ""
@@ -48,42 +52,40 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(refname, "refs/heads/") {
 		name := refname[len("refs/heads/"):]
 
-		status := db_branch_get_status(hooks_ctx.RepoId, name)
+		//TODO 写权限检查
+		//TODO 锁定分支检查
+		//TODO 锁定分支权限检查
+		//TODO 分支命名规则检查
+		//TODO 强型推送检查
 
-		if status == 1 {
-			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, 3) {
+		branch_names := db_config_get(hooks_ctx.RepoId, "branch_names")
+		if branch_names != "" {
+			if name != branch_names {
 				w.Write([]byte("branch no perm"))
 				return
 			}
-		} else if status == 2 {
-			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, 2) {
-				w.Write([]byte("branch no perm"))
-				return
-			}
-		} else if status == 3 {
-			w.Write([]byte("branch is merge apply"))
-			return
-		} else if status == 4 {
-			w.Write([]byte("branch is merged"))
-			return
-		} else if status == 5 {
-			w.Write([]byte("branch is deleted"))
-			return
-		} else {
-			w.Write([]byte("branch error"))
-			return
 		}
-
-		//更新分支提交
-		db_branch_update_commit(hooks_ctx.RepoId, name, newrev)
 
 		//提交日志
 		db_commit_log_add(hooks_ctx.UserId, hooks_ctx.RepoId, refname, oldrev, newrev)
 
 	} else if strings.HasPrefix(refname, "refs/tags/") {
+		name := refname[len("refs/tags/"):]
+
+		//TODO tag添加权限检查
+		//TODO tag修改权限检查
+
 		if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, 3) {
 			w.Write([]byte("tags no perm"))
 			return
+		}
+
+		tag_names := db_config_get(hooks_ctx.RepoId, "tag_names")
+		if tag_names != "" {
+			if name != tag_names {
+				w.Write([]byte("tag no perm"))
+				return
+			}
 		}
 
 		//提交日志
@@ -99,27 +101,15 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 func hooks_update_change(ctx *Context) {
 	hooks_update := filepath.Join(ctx.RepoDir, "/hooks/update")
 
-	update := `#!/bin/bash
-refname=$(echo "$1" |tr -d '\n' |od -An -tx1|tr ' ' %)
-oldrev=$(echo "$2" |tr -d '\n' |od -An -tx1|tr ' ' %)
-newrev=$(echo "$3" |tr -d '\n' |od -An -tx1|tr ' ' %)
-sid="{{sid}}"
-ok=$(curl -s -d "sid=${sid}&refname=${1}&oldrev=${2}&newrev=${3}" "http://127.0.0.1:8088/__hooks__/update")
-if [[ $ok != "ok" ]]; then
-	echo $ok
-	exit 1
-fi
-exit 0
-`
-	fh, err := os.OpenFile(hooks_update, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0777)
+	update, err := Asset("res/hook_update.tpl")
 	if err != nil {
 		panic(err)
 	}
-	defer fh.Close()
 
-	update = strings.Replace(update, "{{sid}}", sid, 1)
+	update = bytes.Replace(update, []byte("{{$.Sid}}"), []byte(sid), 1)
+	update = bytes.Replace(update, []byte("{{$.HookUrl}}"), []byte(hook_update_url), 1)
 
-	_, err = fh.WriteString(update)
+	err = ioutil.WriteFile(hooks_update, update, 0777)
 	if err != nil {
 		panic(err)
 	}

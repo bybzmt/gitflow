@@ -38,34 +38,31 @@ func db_open() *sql.DB {
 	return db
 }
 
-type GitflowConfig struct {
-	Develop       string
-	Master        string
-	BugfixPrefix  string
-	BugfixExpr    string
-	FeaturePrefix string
-	FeatureExpr   string
-	HotfixPrefix  string
-	HotfixExpr    string
-	ReleasePrefix string
-	ReleaseExpr   string
-	UserIsadmin   bool
-}
-
-func db_get_gitflow_config(repo_id int) *GitflowConfig {
-	sql := "select master,develop,prefix_bugfix,prefix_feature,prefix_hotfix,prefix_release,expr_bugfix,expr_feature,expr_hotfix,expr_release from gitflow where rid = ?"
-
+func db_config_get(repo_id int, key string) string {
 	db := db_open()
 	defer db.Close()
 
-	c := new(GitflowConfig)
+	ssql := "select `value` from config where rid = ? and `key`= ?"
 
-	err := db.QueryRow(sql, repo_id).Scan(&c.Master, &c.Develop, &c.BugfixPrefix, &c.FeaturePrefix, &c.HotfixPrefix, &c.ReleasePrefix, &c.BugfixExpr, &c.FeatureExpr, &c.HotfixExpr, &c.ReleaseExpr)
-	if err != nil {
+	var val string
+
+	err := db.QueryRow(ssql, repo_id, key).Scan(&val)
+	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
 
-	return c
+	return val
+}
+
+func db_config_set(repo_id int64, key string, value string) {
+	db := db_open()
+	defer db.Close()
+
+	ssql := "insert into config (`rid`, `key`, `value`) values(?, ?, ?) ON DUPLICATE KEY UPDATE `value` = ?"
+	_, err := db.Exec(ssql, repo_id, key, value, value)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func db_find_repo_id(name string) int {
@@ -173,32 +170,6 @@ func db_user_get(uid int) *UserRow {
 	return t
 }
 
-func db_rules_getall() []RuleRow {
-	ssql := "select id,about from rules"
-	db := db_open()
-	defer db.Close()
-
-	rows, err := db.Query(ssql)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	var data []RuleRow
-
-	for rows.Next() {
-		t := RuleRow{}
-		err := rows.Scan(&t.Id, &t.About)
-		if err != nil {
-			panic(err)
-		}
-
-		data = append(data, t)
-	}
-
-	return data
-}
-
 func db_perms_getall(user_id int) []PermRow {
 	ssql := "select id,rid,uid,rule from perms where uid = ?"
 	db := db_open()
@@ -245,58 +216,6 @@ func db_perm_has(repo_id, user_id, rule int) bool {
 	}
 
 	return true
-}
-
-func db_branch_get_status(repo_id int, name string) int {
-	db := db_open()
-	defer db.Close()
-
-	var status int
-
-	ssql := "select `status` from branchs where rid = ? and branch = ?"
-	err := db.QueryRow(ssql, hooks_ctx.RepoId, name).Scan(&status)
-	if err != nil && err != sql.ErrNoRows {
-		panic(err)
-	}
-
-	return status
-}
-
-func db_branch_update_commit(repo_id int, name, commit string) {
-	db := db_open()
-	defer db.Close()
-
-	ssql := "update branchs set commit = ? where rid = ? and branch = ?"
-	_, err := db.Exec(ssql, commit, repo_id, name)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func db_history_branchs(repo_id int, prefix string) []string {
-	ssql := "select branch from branchs where rid = ? and branch like ?"
-	db := db_open()
-	defer db.Close()
-
-	rows, err := db.Query(ssql, repo_id, prefix+"%")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	var data []string
-
-	for rows.Next() {
-		var name string
-		err := rows.Scan(&name)
-		if err != nil {
-			panic(err)
-		}
-
-		data = append(data, name)
-	}
-
-	return data
 }
 
 func db_commit_log_add(uid, repo_id int, branch, oldrev, newrev string) {

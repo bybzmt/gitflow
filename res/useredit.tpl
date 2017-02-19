@@ -1,10 +1,10 @@
 {{define "body"}}
 <div class="button">
 <a href="/">首页</a>
-<a href="/__gitflow__/users">用户管理</a>
+<a href="/admin/users">用户管理</a>
 </div>
 
-<form action="/__gitflow__/useredit_do" method="post">
+<form action="/admin/useredit_do" method="post">
 <input id="uid" name="uid" type="hidden" value="{{$.User.Id}}" />
 
 <div>
@@ -38,7 +38,7 @@
 
 <input type="submit" name="act" value="保存" />
 &nbsp;&nbsp;&nbsp;&nbsp;
-<a href="/__gitflow__/users">取消</a>
+<a href="/admin/users">取消</a>
 
 </form>
 

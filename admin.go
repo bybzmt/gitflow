@@ -55,9 +55,11 @@ func page_admin_index(w http.ResponseWriter, r *http.Request) {
 	tmpl := load_tpl("index.tpl")
 
 	var data = struct {
-		Repos []RepoRow
+		Repos     []RepoRow
+		ReposBase string
 	}{
-		Repos: repos,
+		Repos:     repos,
+		ReposBase: "http://" + r.Host + r.RequestURI + "repos/",
 	}
 
 	tmpl.Execute(w, data)
@@ -86,22 +88,12 @@ func page_admin_users(w http.ResponseWriter, r *http.Request) {
 func page_admin_useradd(w http.ResponseWriter, r *http.Request) {
 	defer catch_error(w, r)
 
-	if !page_admin_auth(w, r) {
-		return
-	}
-
-	repos := db_repos_getall()
-	rules := db_rules_getall()
+	//TODO 注册开关判断
 
 	tmpl := load_tpl("useradd.tpl")
 
 	var data = struct {
-		Repos []RepoRow
-		Rules []RuleRow
-	}{
-		Repos: repos,
-		Rules: rules,
-	}
+	}{}
 
 	tmpl.Execute(w, data)
 }
@@ -109,24 +101,18 @@ func page_admin_useradd(w http.ResponseWriter, r *http.Request) {
 func page_admin_useradd_do(w http.ResponseWriter, r *http.Request) {
 	defer catch_error(w, r)
 
-	if !page_admin_auth(w, r) {
-		return
-	}
+	//TODO 注册开关判断
 
 	user := r.FormValue("user")
 	pass := r.FormValue("pass")
-	isadmin := r.FormValue("isadmin")
-
-	perms, _ := r.Form["perms[]"]
 
 	db := db_open()
 	defer db.Close()
 
 	rel_pass := HashPass(pass)
-	rel_isadmin, _ := strconv.ParseInt(isadmin, 10, 8)
 
-	ssql := "insert into users (`user`, `pass`, `isadmin`) value (?, ?, ?)"
-	res, err := db.Exec(ssql, user, rel_pass, rel_isadmin)
+	ssql := "insert into users (`user`, `pass`, `isadmin`) value (?, ?, 0)"
+	res, err := db.Exec(ssql, user, rel_pass)
 	if err != nil {
 		panic(err)
 	}
@@ -136,34 +122,13 @@ func page_admin_useradd_do(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	ssql = "insert into perms (`rid`, `uid`, `rule`) value(?,?,?)"
-	stmt, err := db.Prepare(ssql)
-	if err != nil {
-		panic(err)
+	//将第1个注册的用户置为管理员
+	if uid == 1 {
+		ssql = "update users set isadmin = 1 where id = ?"
+		db.Exec(ssql, uid)
 	}
 
-	for _, perm := range perms {
-		t := strings.Split(perm, ":")
-		if len(t) != 2 {
-			w.Write([]byte("request bad"))
-			return
-		}
-		rid, err := strconv.ParseInt(t[0], 10, 8)
-		if err != nil {
-			panic(err)
-		}
-		rule, err := strconv.ParseInt(t[1], 10, 8)
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = stmt.Exec(rid, uid, rule)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	show_confirm(w, r, "添加成功", "/__gitflow__/users", "")
+	show_confirm(w, r, "添加成功", "/", "")
 }
 
 func page_admin_useredit(w http.ResponseWriter, r *http.Request) {
@@ -178,12 +143,12 @@ func page_admin_useredit(w http.ResponseWriter, r *http.Request) {
 
 	user := db_user_get(int(rel_uid))
 	if user == nil {
-		show_confirm(w, r, "用户不存在", "/__gitflow__/users", "")
+		show_confirm(w, r, "用户不存在", "/admin/users", "")
 		return
 	}
 
 	repos := db_repos_getall()
-	rules := db_rules_getall()
+	rules := ReposRules
 	perms := db_perms_getall(int(rel_uid))
 
 	rel_perms := make(map[int]map[int]bool)
@@ -225,7 +190,7 @@ func page_admin_useredit_do(w http.ResponseWriter, r *http.Request) {
 	isadmin := r.FormValue("isadmin")
 
 	if uid == "1" && isadmin != "1" {
-		show_confirm(w, r, "root必需是管理员", "/__gitflow__/users", "")
+		show_confirm(w, r, "root必需是管理员", "/admin/users", "")
 	}
 
 	perms, _ := r.Form["perms[]"]
@@ -281,13 +246,15 @@ func page_admin_useredit_do(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 
+		//TODO 验证rule合法性
+
 		_, err = stmt.Exec(rid, uid, rule)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	show_confirm(w, r, "编辑成功", "/__gitflow__/users", "")
+	show_confirm(w, r, "编辑成功", "/admin/users", "")
 }
 
 func page_admin_userdel(w http.ResponseWriter, r *http.Request) {
@@ -299,7 +266,7 @@ func page_admin_userdel(w http.ResponseWriter, r *http.Request) {
 
 	uid := r.FormValue("uid")
 
-	show_confirm(w, r, "您确认删除吗?", "/__gitflow__/userdel_do?uid="+uid, "/__gitflow__/users")
+	show_confirm(w, r, "您确认删除吗?", "/admin/userdel_do?uid="+uid, "/admin/users")
 }
 
 func page_admin_userdel_do(w http.ResponseWriter, r *http.Request) {
@@ -312,7 +279,7 @@ func page_admin_userdel_do(w http.ResponseWriter, r *http.Request) {
 	uid := r.FormValue("uid")
 
 	if uid == "1" {
-		show_confirm(w, r, "root不能删除", "/__gitflow__/users", "")
+		show_confirm(w, r, "root不能删除", "/admin/users", "")
 		return
 	}
 
@@ -331,7 +298,7 @@ func page_admin_userdel_do(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	show_confirm(w, r, "删除成功", "/__gitflow__/users", "")
+	show_confirm(w, r, "删除成功", "/admin/users", "")
 }
 
 func page_admin_repoadd(w http.ResponseWriter, r *http.Request) {
@@ -358,15 +325,27 @@ func page_admin_repoadd_do(w http.ResponseWriter, r *http.Request) {
 
 	name := r.FormValue("name")
 	about := r.FormValue("about")
+	branch_names := r.FormValue("branch_names")
+	tag_names := r.FormValue("tag_names")
+	branch_locks := r.FormValue("branch_locks")
 
 	db := db_open()
 	defer db.Close()
 
-	ssql := "insert into repositories (`name`, `message`) value (?, ?)"
-	_, err := db.Exec(ssql, name, about)
+	ssql := "insert into repositories (`name`, `message`) values (?, ?)"
+	res, err := db.Exec(ssql, name, about)
 	if err != nil {
 		panic(err)
 	}
+
+	repo_id, err := res.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+
+	db_config_set(repo_id, "branch_names", branch_names)
+	db_config_set(repo_id, "tag_names", tag_names)
+	db_config_set(repo_id, "branch_locks", branch_locks)
 
 	show_confirm(w, r, "添加成功", "/", "")
 }
@@ -389,10 +368,20 @@ func page_admin_repoedit(w http.ResponseWriter, r *http.Request) {
 
 	tmpl := load_tpl("repoedit.tpl")
 
+	branch_names := db_config_get(repo.Id, "branch_names")
+	tag_names := db_config_get(repo.Id, "tag_names")
+	branch_locks := db_config_get(repo.Id, "branch_locks")
+
 	var data = struct {
-		Repo RepoRow
+		Repo        RepoRow
+		BranchNames string
+		BranchLocks string
+		TagNames    string
 	}{
-		Repo: *repo,
+		Repo:        *repo,
+		BranchNames: branch_names,
+		BranchLocks: branch_locks,
+		TagNames:    tag_names,
 	}
 
 	tmpl.Execute(w, data)
@@ -408,6 +397,11 @@ func page_admin_repoedit_do(w http.ResponseWriter, r *http.Request) {
 	rid := r.FormValue("rid")
 	name := r.FormValue("name")
 	about := r.FormValue("about")
+	branch_names := r.FormValue("branch_names")
+	tag_names := r.FormValue("tag_names")
+	branch_locks := r.FormValue("branch_locks")
+
+	repo_id, _ := strconv.ParseInt(rid, 10, 32)
 
 	db := db_open()
 	defer db.Close()
@@ -417,6 +411,10 @@ func page_admin_repoedit_do(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
+	db_config_set(repo_id, "branch_names", branch_names)
+	db_config_set(repo_id, "tag_names", tag_names)
+	db_config_set(repo_id, "branch_locks", branch_locks)
 
 	show_confirm(w, r, "编辑成功", "/", "")
 }
@@ -430,7 +428,7 @@ func page_admin_repodel(w http.ResponseWriter, r *http.Request) {
 
 	rid := r.FormValue("rid")
 
-	show_confirm(w, r, "您确认删除吗?", "/__gitflow__/repodel_do?rid="+rid, "/__gitflow__/users")
+	show_confirm(w, r, "您确认删除吗?", "/admin/repodel_do?rid="+rid, "/admin/users")
 }
 
 func page_admin_repodel_do(w http.ResponseWriter, r *http.Request) {

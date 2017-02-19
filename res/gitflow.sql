@@ -23,24 +23,6 @@ CREATE TABLE `perms` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
-
-CREATE TABLE `rules` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `about` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
-insert into `rules` (`id`, `about`) VALUES 
-(1, '访问项目'),
-(2, '修改项目'),
-(3, '新建分支'),
-(4, '删除分支'),
-(5, '新建tag'),
-(6, '修改tag'),
-(7, '删除tag'),
-(8, '锁定分支修改'),
-(9, '强型推送');
-
 CREATE TABLE `users` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user` varchar(100) NOT NULL,

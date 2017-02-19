@@ -15,16 +15,16 @@
     <tr>
         <td class="name">{{.User}}</td>
         <td>
-            <a href="/__gitflow__/useredit?uid={{.Id}}">编辑</a>
+            <a href="/admin/useredit?uid={{.Id}}">编辑</a>
             &nbsp;&nbsp;&nbsp;&nbsp;
-            <a href="/__gitflow__/userdel?uid={{.Id}}">删除</a>
+            <a href="/admin/userdel?uid={{.Id}}">删除</a>
         </td>
     </tr>
 {{end}}
     <tr>
         <td class="name"></td>
         <td>
-            <a href="/__gitflow__/useradd">添加用户</a>
+            <a href="/admin/useradd">添加用户</a>
         </td>
     </tr>
 
