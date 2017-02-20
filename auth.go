@@ -6,6 +6,9 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"encoding/hex"
+	"regexp"
+	"regexp/syntax"
+	"strings"
 )
 
 //项目权限设置
@@ -95,4 +98,31 @@ func HashPass(in string) string {
 	mac.Write([]byte(in))
 	out := make([]byte, 0, 40)
 	return hex.EncodeToString(mac.Sum(out))
+}
+
+func MatchPartten(parttens, name string, empty bool) bool {
+	parttens = strings.Trim(parttens, "\r\n\t ")
+	if parttens == "" {
+		return empty
+	}
+
+	tmps := strings.Split(parttens, "\n")
+	for _, tmp := range tmps {
+		//处理dot
+		regx, err := syntax.Parse(strings.Trim(tmp, "\r\n\t "), syntax.PerlX|syntax.MatchNL|syntax.UnicodeGroups)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		reg, err := regexp.Compile(regx.String())
+		if err != nil {
+			panic(err.Error())
+		}
+
+		if reg.MatchString(name) {
+			return true
+		}
+	}
+
+	return false
 }

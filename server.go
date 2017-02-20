@@ -20,7 +20,7 @@ type Context struct {
 
 type Page func(w http.ResponseWriter, r *http.Request, ctx *Context)
 
-var gitBin = flag.String("git", "git", "git bin path")
+var gitBin = flag.String("git", "/usr/bin/git", "git bin path")
 var root = flag.String("repos", "./", "repositories path")
 var dbdsn = flag.String("dsn", "root:123456@tcp(127.0.0.1:3306)/gitflow", "database dsn")
 var addr = flag.String("addr", ":80", "listen on ip:port")

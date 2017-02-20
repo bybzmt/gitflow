@@ -32,7 +32,13 @@ else
 	newrev_type=$(git cat-file -t $newrev)
 fi
 
-ok=$(curl -s -d "sid=${sid}&refname=${refname}&oldrev=${oldrev}&newrev=${newrev}&newrev_type=${newrev_type}" "${hook_url}")
+params="sid=${sid}"
+params="${params}&refname=${refname}"
+params="${params}&oldrev=${oldrev}"
+params="${params}&newrev=${newrev}"
+params="${params}&newrev_type=${newrev_type}"
+
+ok=$(curl -s -d "${params}" "${hook_url}")
 if [[ $ok != "ok" ]]; then
 	echo $ok
 	exit 1

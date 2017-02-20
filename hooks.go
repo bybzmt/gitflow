@@ -38,11 +38,12 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	refname := r.FormValue("refname")
 	oldrev := r.FormValue("oldrev")
 	newrev := r.FormValue("newrev")
+	newrev_type := r.FormValue("newrev_type")
 
-	log.Println(sid, oldrev, newrev, refname)
+	log.Println(_sid, oldrev, newrev, refname, newrev_type)
 
 	if sid != _sid {
-		w.Write([]byte("hooks sid fail"))
+		w.Write([]byte("*** sid错误"))
 		return
 	}
 
@@ -52,18 +53,40 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(refname, "refs/heads/") {
 		name := refname[len("refs/heads/"):]
 
-		//TODO 写权限检查
-		//TODO 锁定分支检查
-		//TODO 锁定分支权限检查
-		//TODO 分支命名规则检查
-		//TODO 强型推送检查
-
-		branch_names := db_config_get(hooks_ctx.RepoId, "branch_names")
-		if branch_names != "" {
-			if name != branch_names {
-				w.Write([]byte("branch no perm"))
+		//判断是否是锁定分支
+		branch_locks := db_config_get(hooks_ctx.RepoId, "branch_locks")
+		if MatchPartten(branch_locks, name, false) {
+			//锁定分支权限检查
+			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_LOCK) {
+				w.Write([]byte("*** 您没有权限添加新分支！"))
 				return
 			}
+		} else {
+			//一般分支权限检查
+			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_WRITE) {
+				w.Write([]byte("*** 您没有权限修改！"))
+				return
+			}
+		}
+
+		if newrev_type == "commit" {
+			//TODO 强型推送检查
+
+			//检查分支命名是否合法
+			branch_names := db_config_get(hooks_ctx.RepoId, "branch_names")
+			if !MatchPartten(branch_names, name, true) {
+				w.Write([]byte("*** 分支命名不合法！"))
+				return
+			}
+		} else if newrev_type == "delete" {
+			//tag修改权限检查
+			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_DEL) {
+				w.Write([]byte("*** 您没有权限删除分支！"))
+				return
+			}
+		} else {
+			w.Write([]byte("*** newrev_type 错误！"))
+			return
 		}
 
 		//提交日志
@@ -72,26 +95,35 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	} else if strings.HasPrefix(refname, "refs/tags/") {
 		name := refname[len("refs/tags/"):]
 
-		//TODO tag添加权限检查
-		//TODO tag修改权限检查
-
-		if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, 3) {
-			w.Write([]byte("tags no perm"))
-			return
-		}
-
-		tag_names := db_config_get(hooks_ctx.RepoId, "tag_names")
-		if tag_names != "" {
-			if name != tag_names {
-				w.Write([]byte("tag no perm"))
+		if newrev_type == "commit" || newrev_type == "tag" {
+			//commit == un-annotated tag (没有备注的tag)
+			//tag添加权限检查
+			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_TAG_ADD) {
+				w.Write([]byte("*** 您没有权限添加tag"))
 				return
 			}
+
+			//检查tag命名是否合法
+			tag_names := db_config_get(hooks_ctx.RepoId, "tag_names")
+			if !MatchPartten(tag_names, name, true) {
+				w.Write([]byte("*** tag命名不合法"))
+				return
+			}
+		} else if newrev_type == "delete" {
+			//tag修改权限检查
+			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_TAG_EDIT) {
+				w.Write([]byte("*** 您没有权限删除tag"))
+				return
+			}
+		} else {
+			w.Write([]byte("*** newrev_type 错误"))
+			return
 		}
 
 		//提交日志
 		db_commit_log_add(hooks_ctx.UserId, hooks_ctx.RepoId, refname, oldrev, newrev)
 	} else {
-		w.Write([]byte("action not allow"))
+		w.Write([]byte("*** 操作不充许"))
 		return
 	}
 
