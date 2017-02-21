@@ -17,27 +17,21 @@ const (
 	REPOS_RULE_READ = 1
 	//修改项目
 	REPOS_RULE_WRITE = 2
-	//新建分支
-	REPOS_RULE_ADD = 3
+	//修改锁定分支
+	REPOS_RULE_LOCK = 3
 	//删除分支"
 	REPOS_RULE_DEL = 4
-	//修改锁定分支
-	REPOS_RULE_LOCK = 5
-	//强型推送
-	REPOS_RULE_FORCE = 6
 	//新建tag
-	REPOS_RULE_TAG_ADD = 7
+	REPOS_RULE_TAG_ADD = 5
 	//修改/删除tag
-	REPOS_RULE_TAG_EDIT = 8
+	REPOS_RULE_TAG_EDIT = 6
 )
 
 var ReposRules = []RuleRow{
 	{Id: REPOS_RULE_READ, About: "访问项目"},
 	{Id: REPOS_RULE_WRITE, About: "修改项目"},
-	{Id: REPOS_RULE_ADD, About: "新建分支"},
 	{Id: REPOS_RULE_DEL, About: "删除分支"},
 	{Id: REPOS_RULE_LOCK, About: "修改锁定分支"},
-	{Id: REPOS_RULE_FORCE, About: "强型推送"},
 	{Id: REPOS_RULE_TAG_ADD, About: "新建tag"},
 	{Id: REPOS_RULE_TAG_EDIT, About: "修改/删除tag"},
 }

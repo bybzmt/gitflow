@@ -199,7 +199,6 @@ func page_admin_useredit_do(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	rel_isadmin, _ := strconv.ParseInt(isadmin, 10, 8)
-	log.Println(isadmin, rel_isadmin)
 
 	if pass != "" {
 		rel_pass := HashPass(pass)

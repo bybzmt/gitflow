@@ -222,7 +222,7 @@ func db_commit_log_add(uid, repo_id int, branch, oldrev, newrev string) {
 	db := db_open()
 	defer db.Close()
 
-	ssql := "INSERT INTO commit_log(rid, uid, branch, oldrev, newrev) VALUES(?,?,?,?)"
+	ssql := "INSERT INTO commit_log(rid, uid, branch, oldrev, newrev) VALUES(?,?,?,?,?)"
 	_, err := db.Exec(ssql, repo_id, uid, branch, oldrev, newrev)
 	if err != nil {
 		panic(err)

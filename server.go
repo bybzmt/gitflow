@@ -51,7 +51,8 @@ func main() {
 	//钩子回调
 	http.HandleFunc("/__hooks__/update", page_hooks_update)
 	//git服务
-	http.Handle("/repos/", http.StripPrefix("/repos/", http.HandlerFunc(page_repos)))
+	//http.Handle("/repos/", http.StripPrefix("/repos/", http.HandlerFunc(page_repos)))
+	http.HandleFunc("/repos/", page_repos)
 
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
@@ -59,9 +60,12 @@ func main() {
 func page_repos(w http.ResponseWriter, r *http.Request) {
 	defer catch_error(w, r)
 
-	tmps := strings.SplitN(strings.Trim(filepath.FromSlash(r.URL.Path), "/"), "/", 2)
-	repo_name := tmps[0]
-	repo_dir := filepath.Join(*root, tmps[0])
+	var repo_name, repo_dir string
+	tmps := strings.SplitN(strings.Trim(filepath.FromSlash(r.URL.Path), "/"), "/", 3)
+	if len(tmps) > 2 {
+		repo_name = tmps[1]
+		repo_dir = filepath.Join(*root, tmps[1])
+	}
 
 	//查找git库id
 	repo_id := db_find_repo_id(repo_name)
@@ -91,6 +95,11 @@ func page_repos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !db_perm_has(repo_id, user_id, REPOS_RULE_READ) {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
+	}
+
 	page_git(w, r, ctx)
 }
 
@@ -108,11 +117,11 @@ func page_git(w http.ResponseWriter, r *http.Request, ctx *Context) {
 	cgih = cgi.Handler{
 		Path: *gitBin,
 		Dir:  *root,
-		Root: "/",
+		Root: "/repos",
 		Args: []string{"http-backend"},
 		Env: []string{
+			"GIT_HTTP_EXPORT_ALL=",
 			"GIT_PROJECT_ROOT=" + *root,
-			"GIT_HTTP_EXPORT_ALL=1",
 		},
 	}
 	cgih.ServeHTTP(w, r)
