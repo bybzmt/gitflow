@@ -51,6 +51,4 @@ func server_init() {
 		log.Println("创建相关表完成.")
 		log.Println("目前所有用户为空，请注册用户，第1个注册的用户为管理员.")
 	}
-
-	log.Println("启动完成.")
 }
