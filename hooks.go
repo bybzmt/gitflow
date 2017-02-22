@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ var hooks_lock sync.Mutex
 var sid = ""
 var hook_update_url = ""
 var hooks_ctx *Context
+var hooks_update = ""
+var hooks_update_old = ""
 
 func hooks_start(ctx *Context) {
 	hooks_lock.Lock()
@@ -23,12 +26,35 @@ func hooks_start(ctx *Context) {
 	sid = strconv.FormatInt(tmp, 16)
 	hooks_ctx = ctx
 	hook_update_url = ctx.BaseUrl + "/__hooks__/update"
+
+	hooks_update = filepath.Join(ctx.RepoDir, "/hooks/update")
+	hooks_update_old = filepath.Join(ctx.RepoDir, "/hooks/update."+sid)
+
+	err := os.Rename(hooks_update, hooks_update_old)
+	if err != nil {
+		hooks_update_old = ""
+	}
+
+	//动态改变钩子
+	hooks_update_change(hooks_update)
 }
 
 func hooks_end() {
-	hooks_lock.Unlock()
+	err := os.Remove(hooks_update)
+	if err != nil {
+		log.Println("hooks update remove err: " + err.Error())
+	}
+
+	if hooks_update_old != "" {
+		err := os.Rename(hooks_update_old, hooks_update)
+		if err != nil {
+			log.Println("hooks old update recovery err: " + err.Error())
+		}
+	}
+
 	sid = ""
 	hooks_ctx = nil
+	hooks_lock.Unlock()
 }
 
 func page_hooks_update(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +66,9 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	newrev := r.FormValue("newrev")
 	newrev_type := r.FormValue("newrev_type")
 
-	log.Println(_sid, oldrev, newrev, refname, newrev_type)
+	//log.Println(_sid, oldrev, newrev, refname, newrev_type)
+	//提交日志
+	db_commit_log_add(hooks_ctx.UserId, hooks_ctx.RepoId, refname, oldrev, newrev)
 
 	if sid != _sid {
 		w.Write([]byte("*** sid错误"))
@@ -58,7 +86,7 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 		if MatchPartten(branch_locks, name, false) {
 			//锁定分支权限检查
 			if !db_perm_has(hooks_ctx.RepoId, hooks_ctx.UserId, REPOS_RULE_LOCK) {
-				w.Write([]byte("*** 您没有权限添加新分支！"))
+				w.Write([]byte("*** 您没有权限修改锁定分支！"))
 				return
 			}
 		} else {
@@ -72,11 +100,14 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 		if newrev_type == "commit" {
 			//TODO 强型推送检查
 
-			//检查分支命名是否合法
-			branch_names := db_config_get(hooks_ctx.RepoId, "branch_names")
-			if !MatchPartten(branch_names, name, true) {
-				w.Write([]byte("*** 分支命名不合法！"))
-				return
+			//是新建分支
+			if oldrev == "0000000000000000000000000000000000000000" {
+				//检查分支命名是否合法
+				branch_names := db_config_get(hooks_ctx.RepoId, "branch_names")
+				if !MatchPartten(branch_names, name, true) {
+					w.Write([]byte("*** 分支命名不合法！"))
+					return
+				}
 			}
 		} else if newrev_type == "delete" {
 			//tag修改权限检查
@@ -88,10 +119,6 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("*** newrev_type 错误！"))
 			return
 		}
-
-		//提交日志
-		db_commit_log_add(hooks_ctx.UserId, hooks_ctx.RepoId, refname, oldrev, newrev)
-
 	} else if strings.HasPrefix(refname, "refs/tags/") {
 		name := refname[len("refs/tags/"):]
 
@@ -119,9 +146,6 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("*** newrev_type 错误"))
 			return
 		}
-
-		//提交日志
-		db_commit_log_add(hooks_ctx.UserId, hooks_ctx.RepoId, refname, oldrev, newrev)
 	} else {
 		w.Write([]byte("*** 操作不充许"))
 		return
@@ -130,9 +154,7 @@ func page_hooks_update(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func hooks_update_change(ctx *Context) {
-	hooks_update := filepath.Join(ctx.RepoDir, "/hooks/update")
-
+func hooks_update_change(hooks_update string) {
 	update, err := Asset("res/hook_update.tpl")
 	if err != nil {
 		panic(err)

@@ -108,9 +108,6 @@ func page_git(w http.ResponseWriter, r *http.Request, ctx *Context) {
 	if strings.HasSuffix(r.URL.Path, "/git-receive-pack") {
 		hooks_start(ctx)
 		defer hooks_end()
-
-		//动态改变钩子
-		hooks_update_change(ctx)
 	}
 
 	var cgih cgi.Handler
