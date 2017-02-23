@@ -29,6 +29,8 @@ func main() {
 	flag.Parse()
 
 	//server_init()
+	config.ProjectRoot = *root
+	config.GitBinPath = *gitBin
 
 	//管理界面
 	http.HandleFunc("/", page_admin_index)
@@ -51,8 +53,8 @@ func main() {
 	//钩子回调
 	http.HandleFunc("/__hooks__/update", page_hooks_update)
 	//git服务
-	//http.Handle("/repos/", http.StripPrefix("/repos/", http.HandlerFunc(page_repos)))
-	http.HandleFunc("/repos/", page_repos)
+	http.Handle("/repos/", http.StripPrefix("/repos/", http.HandlerFunc(requestHandler)))
+	//http.HandleFunc("/repos/", page_repos)
 
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
@@ -101,6 +103,7 @@ func page_repos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page_git(w, r, ctx)
+
 }
 
 func page_git(w http.ResponseWriter, r *http.Request, ctx *Context) {
