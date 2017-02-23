@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"strings"
 )
 
 type RepoRow struct {
@@ -36,6 +37,57 @@ func db_open() *sql.DB {
 	}
 
 	return db
+}
+
+func db_is_empty() bool {
+	db := db_open()
+	defer db.Close()
+
+	ssql := "show tables"
+
+	rows, err := db.Query(ssql)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	var data []string
+
+	for rows.Next() {
+		var tlb string
+		err := rows.Scan(&tlb)
+		if err != nil {
+			panic(err)
+		}
+
+		data = append(data, tlb)
+	}
+
+	if len(data) > 0 {
+		return false
+	}
+
+	return true
+}
+
+func db_init_tables() {
+	tmp, err := Asset("res/gitflow.sql")
+	if err != nil {
+		panic(err)
+	}
+
+	db := db_open()
+	defer db.Close()
+
+	for _, ssql := range strings.Split(string(tmp), ";") {
+		ssql = strings.Trim(ssql, "\r\n\t ")
+		if ssql != "" {
+			_, err := db.Exec(ssql)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }
 
 func db_config_get(repo_id int, key string) string {

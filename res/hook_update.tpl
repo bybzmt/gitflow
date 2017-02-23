@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #会话id
 sid="{{$.Sid}}"
@@ -39,7 +39,7 @@ params="${params}&newrev=${newrev}"
 params="${params}&newrev_type=${newrev_type}"
 
 ok=$(curl -s -d "${params}" "${hook_url}")
-if [[ $ok != "ok" ]]; then
+if [ "$ok" != "ok" ]; then
 	echo $ok
 	exit 1
 fi

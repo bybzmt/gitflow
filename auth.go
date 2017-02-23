@@ -103,7 +103,7 @@ func MatchPartten(parttens, name string, empty bool) bool {
 	tmps := strings.Split(parttens, "\n")
 	for _, tmp := range tmps {
 		//处理dot
-		regx, err := syntax.Parse(strings.Trim(tmp, "\r\n\t "), syntax.PerlX|syntax.MatchNL|syntax.UnicodeGroups)
+		regx, err := syntax.Parse("^"+strings.Trim(tmp, "\r\n\t ")+"$", syntax.PerlX|syntax.MatchNL|syntax.UnicodeGroups)
 		if err != nil {
 			panic(err.Error())
 		}

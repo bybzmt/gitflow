@@ -29,15 +29,15 @@ type Config struct {
 }
 
 type HandlerReq struct {
-	w         http.ResponseWriter
-	r         *http.Request
-	Rpc       string
-	Dir       string
-	File      string
-	repo_id   int
-	repo_name string
-	user_id   int
-	BaseUrl   string
+	w        http.ResponseWriter
+	r        *http.Request
+	Rpc      string
+	Dir      string
+	File     string
+	RepoId   int
+	RepoName string
+	UserId   int
+	BaseUrl  string
 }
 
 var config Config = Config{
@@ -97,15 +97,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			hr := HandlerReq{
-				w:         w,
-				r:         r,
-				Rpc:       rpc,
-				Dir:       dir,
-				File:      file,
-				BaseUrl:   "http://" + r.Host,
-				repo_name: m[1],
-				repo_id:   repo_id,
-				user_id:   user_id,
+				w:        w,
+				r:        r,
+				Rpc:      rpc,
+				Dir:      dir,
+				File:     file,
+				BaseUrl:  "http://" + r.Host,
+				RepoName: m[1],
+				RepoId:   repo_id,
+				UserId:   user_id,
 			}
 
 			if user_id < 1 {
@@ -120,7 +120,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if rpc == "receive-pack" {
-				hooks_start(ctx)
+				hooks_start(&hr)
 				defer hooks_end()
 			}
 

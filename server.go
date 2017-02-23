@@ -4,21 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"net/http/cgi"
-	"path/filepath"
-	"strings"
 )
-
-type Context struct {
-	RepoId   int
-	RepoName string
-	RepoDir  string
-	UserId   int
-	UserName string
-	BaseUrl  string
-}
-
-type Page func(w http.ResponseWriter, r *http.Request, ctx *Context)
 
 var gitBin = flag.String("git", "/usr/bin/git", "git bin path")
 var root = flag.String("repos", "./", "repositories path")
@@ -28,7 +14,7 @@ var addr = flag.String("addr", ":80", "listen on ip:port")
 func main() {
 	flag.Parse()
 
-	//server_init()
+	server_init()
 	config.ProjectRoot = *root
 	config.GitBinPath = *gitBin
 
@@ -59,73 +45,11 @@ func main() {
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 
-func page_repos(w http.ResponseWriter, r *http.Request) {
-	defer catch_error(w, r)
-
-	var repo_name, repo_dir string
-	tmps := strings.SplitN(strings.Trim(filepath.FromSlash(r.URL.Path), "/"), "/", 3)
-	if len(tmps) > 2 {
-		repo_name = tmps[1]
-		repo_dir = filepath.Join(*root, tmps[1])
+func server_init() {
+	if db_is_empty() {
+		log.Println("数据库为空，自动创建相关表.")
+		db_init_tables()
+		log.Println("创建相关表完成.")
+		log.Println("目前所有用户为空，请注册用户，第1个注册的用户为管理员.")
 	}
-
-	//查找git库id
-	repo_id := db_find_repo_id(repo_name)
-	if repo_id < 1 {
-		http.NotFound(w, r)
-		return
-	}
-
-	user, pass, ok := r.BasicAuth()
-	var user_id int
-	if ok {
-		user_id = userAuth(repo_id, user, pass)
-	}
-
-	ctx := &Context{
-		RepoId:   repo_id,
-		RepoName: repo_name,
-		RepoDir:  repo_dir,
-		UserId:   user_id,
-		UserName: user,
-		BaseUrl:  "http://" + r.Host,
-	}
-
-	if user_id < 1 {
-		w.Header().Add("WWW-Authenticate", "Basic realm=\"USER LOGIN\"")
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
-	}
-
-	if !db_perm_has(repo_id, user_id, REPOS_RULE_READ) {
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		return
-	}
-
-	page_git(w, r, ctx)
-
-}
-
-func page_git(w http.ResponseWriter, r *http.Request, ctx *Context) {
-	//上传
-	if strings.HasSuffix(r.URL.Path, "/git-receive-pack") {
-		hooks_start(ctx)
-		defer hooks_end()
-
-		//动态改变钩子
-		hooks_update_change(ctx)
-	}
-
-	var cgih cgi.Handler
-	cgih = cgi.Handler{
-		Path: *gitBin,
-		Dir:  *root,
-		Root: "/repos",
-		Args: []string{"http-backend"},
-		Env: []string{
-			"GIT_HTTP_EXPORT_ALL=",
-			"GIT_PROJECT_ROOT=" + *root,
-		},
-	}
-	cgih.ServeHTTP(w, r)
 }
