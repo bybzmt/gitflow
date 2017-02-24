@@ -1,9 +1,9 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -136,14 +136,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 
 func serviceRpc(hr HandlerReq) {
 	w, r, rpc, dir := hr.w, hr.r, hr.Rpc, hr.Dir
-	access := hasAccess(r, dir, rpc, true)
 
+	access := hasAccess(r, dir, rpc, true)
 	if access == false {
 		renderNoAccess(w)
 		return
 	}
-
-	input, _ := ioutil.ReadAll(r.Body)
 
 	w.Header().Set("Content-Type", fmt.Sprintf("application/x-git-%s-result", rpc))
 	w.WriteHeader(http.StatusOK)
@@ -166,9 +164,29 @@ func serviceRpc(hr HandlerReq) {
 		log.Print(err)
 	}
 
-	in.Write(input)
-	io.Copy(w, stdout)
+	go func() {
+		body, err := decompress(r)
+		if err != nil {
+			log.Printf("[ERROR] Error attempting to decompress request body: %+v\n", err)
+			body = r.Body
+		}
+		io.Copy(in, body)
+	}()
+
+	go func() {
+		io.Copy(w, stdout)
+	}()
+
 	cmd.Wait()
+}
+
+func decompress(r *http.Request) (io.Reader, error) {
+	encoding := r.Header.Get("Content-Encoding")
+	if encoding != "gzip" && encoding != "x-gzip" {
+		return r.Body, nil
+	}
+
+	return gzip.NewReader(r.Body)
 }
 
 func getInfoRefs(hr HandlerReq) {
