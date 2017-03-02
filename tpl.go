@@ -5,18 +5,23 @@ import (
 	"net/http"
 )
 
-func page_res(w http.ResponseWriter, r *http.Request) {
-	data, err := Asset("res" + r.URL.Path[len("/__gitflow__/res"):])
-	if err != nil {
-		panic(err)
-	}
+func page_file(name string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data, err := Asset("res/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
 
-	w.Write(data)
+		w.Write(data)
+	}
 }
-func page_favicon(w http.ResponseWriter, r *http.Request) {
-	data, err := Asset("res/favicon.ico")
+
+func page_res(w http.ResponseWriter, r *http.Request) {
+	data, err := Asset("res" + r.URL.Path[len("/res"):])
 	if err != nil {
-		panic(err)
+		http.NotFound(w, r)
+		return
 	}
 
 	w.Write(data)

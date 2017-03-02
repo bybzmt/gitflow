@@ -19,7 +19,6 @@ func main() {
 	config.GitBinPath = *gitBin
 
 	//管理界面
-	http.HandleFunc("/", page_admin_index)
 	http.HandleFunc("/admin/users", page_admin_users)
 	http.HandleFunc("/admin/useradd", page_admin_useradd)
 	http.HandleFunc("/admin/useradd_do", page_admin_useradd_do)
@@ -33,14 +32,17 @@ func main() {
 	http.HandleFunc("/admin/repoedit_do", page_admin_repoedit_do)
 	http.HandleFunc("/admin/repodel", page_admin_repodel)
 	http.HandleFunc("/admin/repodel_do", page_admin_repodel_do)
+
 	//静态资源
 	http.HandleFunc("/res/", page_res)
-	http.HandleFunc("/favicon.ico", page_favicon)
+	http.HandleFunc("/favicon.ico", page_file("favicon.ico"))
+	http.HandleFunc("/", page_file("index.html"))
+
 	//钩子回调
 	http.HandleFunc("/__hooks__/update", page_hooks_update)
+
 	//git服务
 	http.Handle("/repos/", http.StripPrefix("/repos/", http.HandlerFunc(requestHandler)))
-	//http.HandleFunc("/repos/", page_repos)
 
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

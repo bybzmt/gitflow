@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<script>
+	var require = {
+			paths:{
+				'jquery':"jquery-3.1.1",
+				'juicer':'juicer',
+			},
+			shim:{
+				'juicer':{
+					exports:'juicer',
+				},
+				'jquery' : {
+					exports:'$'
+				},
+			}
+	};
+
+	window.onload=function(){
+		var baseurl = location.href;
+		if (baseurl[baseurl.lenght] != "/") {
+			baseurl = baseurl + "/"
+		}
+
+		var sc = document.createElement('script');
+		sc.setAttribute('src', baseurl + "res/require.js");
+		sc.setAttribute('type', "text/javascript");
+		sc.setAttribute('data-main', "res/index");
+		document.getElementsByTagName('head')[0].append(sc);
+	};
+	</script>
+</head>
+<body>
+</body>
+</html>
